@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ミク会計簿 (Miku Financial Manager)</title>
+    <!-- Tailwind CSS CDN untuk styling sederhana dan responsif -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        // Mendefinisikan warna Miku Teal/Cyan yang ikonik
+                        'miku-cyan': {
+                            100: '#E0F7FA',
+                            500: '#00BCD4', // Warna utama
+                            600: '#00ACC1',
+                            700: '#0097A7',
+                        },
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom styles untuk tampilan Miku Theme */
+        body {
+            /* Warna latar belakang sangat terang, mendekati putih dengan sedikit nuansa cyan */
+            background-color: #f8faff; 
+            font-family: 'Inter', sans-serif;
+        }
+        .card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            border: 1px solid #E0F7FA; /* Border halus Miku Cyan */
+        }
+        /* Mempertahankan warna semantik untuk keuangan */
+        .income { color: #10B981; } /* Emerald-500 */
+        .expense { color: #EF4444; } /* Red-500 */
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div id="loading-indicator" class="fixed inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
+        <div class="text-xl font-semibold text-gray-700">Memuat dan mengautentikasi...</div>
+    </div>
+
+    <div class="max-w-4xl mx-auto space-y-8 hidden" id="app-container">
+        
+        <!-- Header dan Info Akun -->
+        <header class="text-center p-4 bg-white rounded-xl card border-t-4 border-miku-cyan-500">
+            <h1 class="text-4xl font-extrabold text-miku-cyan-700 tracking-wider">ミク会計簿 (Miku Kaikeibo)</h1>
+            <p class="text-sm mt-2 text-gray-500">Data Anda tersimpan aman secara otomatis.</p>
+            <div class="mt-4 p-2 bg-miku-cyan-100 rounded-lg text-miku-cyan-700 text-xs">
+                ID Pengguna (untuk isolasi data): <span id="user-id-display" class="font-mono break-all">Memuat...</span>
+            </div>
+        </header>
+
+        <!-- Ringkasan Saldo -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-6 rounded-xl card text-center border-l-4 border-miku-cyan-500">
+                <p class="text-sm font-medium text-gray-500">Saldo Total</p>
+                <p id="total-balance" class="text-3xl font-extrabold mt-1 text-gray-800">Rp 0</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl card text-center border-l-4 border-emerald-500">
+                <p class="text-sm font-medium text-gray-500">Total Pemasukan</p>
+                <p id="total-income" class="text-2xl font-bold mt-1 income">Rp 0</p>
+            </div>
+            <div class="bg-white p-6 rounded-xl card text-center border-l-4 border-red-500">
+                <p class="text-sm font-medium text-gray-500">Total Pengeluaran</p>
+                <p id="total-expense" class="text-2xl font-bold mt-1 expense">Rp 0</p>
+            </div>
+        </section>
+
+        <!-- Formulir Transaksi Baru -->
+        <section class="bg-white p-6 rounded-xl card">
+            <h2 class="text-xl font-semibold mb-4 text-miku-cyan-700">Tambah Transaksi Baru</h2>
+            <form id="transaction-form" class="space-y-4">
+                
+                <!-- Tipe dan Jumlah -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="type" class="block text-sm font-medium text-gray-700">Tipe</label>
+                        <select id="type" name="type" required class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-miku-cyan-500 focus:border-miku-cyan-500 sm:text-sm rounded-md shadow-sm">
+                            <option value="income">Pemasukan (+)</option>
+                            <option value="expense">Pengeluaran (-)</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2">
+                        <label for="amount" class="block text-sm font-medium text-gray-700">Jumlah (Rp)</label>
+                        <input type="number" id="amount" name="amount" required min="1" class="mt-1 focus:ring-miku-cyan-500 focus:border-miku-cyan-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2">
+                    </div>
+                </div>
+
+                <!-- Deskripsi dan Tanggal -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="description" class="block text-sm font-medium text-gray-700">Deskripsi</label>
+                        <input type="text" id="description" name="description" required class="mt-1 focus:ring-miku-cyan-500 focus:border-miku-cyan-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2" placeholder="Gaji bulanan, Belanja makan, dll.">
+                    </div>
+                    <div>
+                        <label for="date" class="block text-sm font-medium text-gray-700">Tanggal</label>
+                        <input type="date" id="date" name="date" required class="mt-1 focus:ring-miku-cyan-500 focus:border-miku-cyan-500 block w-full shadow-sm sm:text-sm border-gray-300 rounded-md p-2">
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-miku-cyan-600 hover:bg-miku-cyan-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-miku-cyan-500">
+                    Simpan Transaksi
+                </button>
+            </form>
+        </section>
+
+        <!-- Daftar Transaksi -->
+        <section class="bg-white p-6 rounded-xl card">
+            <h2 class="text-xl font-semibold mb-4 text-miku-cyan-700">Riwayat Transaksi</h2>
+            
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-miku-cyan-100">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-miku-cyan-700 uppercase tracking-wider">Tanggal</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-miku-cyan-700 uppercase tracking-wider">Deskripsi</th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-miku-cyan-700 uppercase tracking-wider">Jumlah</th>
+                            <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-miku-cyan-700 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="transaction-list" class="bg-white divide-y divide-gray-200">
+                        <!-- Data transaksi akan dimasukkan di sini oleh JavaScript -->
+                        <tr><td colspan="4" class="py-4 text-center text-gray-500">Belum ada transaksi. Tambahkan yang pertama!</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <p id="no-transactions" class="text-center text-gray-500 mt-4 hidden">Belum ada transaksi. Tambahkan yang pertama!</p>
+
+        </section>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        // Import modul-modul Firebase yang diperlukan
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            signInAnonymously, 
+            signInWithCustomToken, 
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            addDoc, 
+            deleteDoc, 
+            onSnapshot, 
+            query, 
+            // orderBy, // Dihapus karena menyebabkan error index
+            setLogLevel 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Atur tingkat logging Firebase
+        setLogLevel('error');
+
+        // VARIABEL GLOBAL DARI LINGKUNGAN CANVAS (MANDATORI)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db;
+        let auth;
+        let userId = null;
+        let transactionsCollectionRef = null;
+        
+        // Elemen DOM
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const appContainer = document.getElementById('app-container');
+        const userIdDisplay = document.getElementById('user-id-display');
+        const transactionForm = document.getElementById('transaction-form');
+        const transactionList = document.getElementById('transaction-list');
+        const totalBalanceEl = document.getElementById('total-balance');
+        const totalIncomeEl = document.getElementById('total-income');
+        const totalExpenseEl = document.getElementById('total-expense');
+        const noTransactionsEl = document.getElementById('no-transactions');
+
+        // Fungsi utilitas untuk format mata uang Rupiah
+        const formatRupiah = (number) => {
+            return new Intl.NumberFormat('id-ID', {
+                style: 'currency',
+                currency: 'IDR',
+                minimumFractionDigits: 0
+            }).format(number);
+        };
+
+        // Fungsi inisialisasi Firebase dan Autentikasi
+        const initFirebase = async () => {
+            if (!firebaseConfig) {
+                console.error("Kesalahan: Konfigurasi Firebase tidak ditemukan.");
+                loadingIndicator.textContent = "Kesalahan: Konfigurasi aplikasi tidak valid.";
+                return;
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // 1. Coba login dengan token kustom jika tersedia
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    // 2. Jika tidak, login anonim
+                    await signInAnonymously(auth);
+                }
+                
+                // 3. Setup listener setelah autentikasi berhasil
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdDisplay.textContent = userId;
+                        // Path Collection: /artifacts/{appId}/users/{userId}/transactions
+                        const collectionPath = `artifacts/${appId}/users/${userId}/transactions`;
+                        transactionsCollectionRef = collection(db, collectionPath);
+                        
+                        // Setelah Auth siap, mulai dengarkan data
+                        startDataListener();
+
+                        // Sembunyikan loading, tampilkan aplikasi
+                        loadingIndicator.classList.add('hidden');
+                        appContainer.classList.remove('hidden');
+
+                    } else {
+                        // Jika keluar (seharusnya tidak terjadi dalam lingkungan ini)
+                        userId = null;
+                        userIdDisplay.textContent = 'Tidak Terautentikasi';
+                        console.log("Pengguna keluar.");
+                        loadingIndicator.textContent = "Autentikasi gagal. Coba muat ulang.";
+                    }
+                });
+
+            } catch (error) {
+                console.error("Kesalahan saat inisialisasi atau autentikasi Firebase:", error);
+                loadingIndicator.textContent = `Kesalahan: ${error.message}`;
+            }
+        };
+
+        // Fungsi untuk menangani penambahan transaksi
+        const addTransaction = async (event) => {
+            event.preventDefault();
+
+            if (!transactionsCollectionRef) {
+                console.error("Aplikasi belum siap. Koleksi data tidak ditemukan.");
+                return;
+            }
+
+            const type = document.getElementById('type').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const description = document.getElementById('description').value.trim();
+            const dateStr = document.getElementById('date').value;
+
+            // Mengganti alert() dengan pesan di konsol atau UI kustom jika ini adalah proyek serius.
+            if (amount <= 0 || description === "" || dateStr === "") {
+                alert("Mohon isi semua bidang dengan benar.");
+                return;
+            }
+
+            const newTransaction = {
+                type: type,
+                amount: amount,
+                description: description,
+                date: dateStr, // Simpan tanggal sebagai string YYYY-MM-DD
+                createdAt: new Date() // Timestamp untuk penyortiran
+            };
+
+            try {
+                await addDoc(transactionsCollectionRef, newTransaction);
+                // Reset form setelah berhasil
+                transactionForm.reset();
+                document.getElementById('date').valueAsDate = new Date(); // Reset tanggal ke hari ini
+            } catch (error) {
+                console.error("Error saat menambahkan dokumen: ", error);
+                alert("Gagal menyimpan transaksi. Cek konsol untuk detail.");
+            }
+        };
+
+        // Fungsi untuk menangani penghapusan transaksi
+        const deleteTransaction = async (docId) => {
+            if (!transactionsCollectionRef) return;
+            
+            try {
+                const docRef = doc(db, transactionsCollectionRef.path, docId);
+                await deleteDoc(docRef);
+            } catch (error) {
+                console.error("Error saat menghapus dokumen: ", error);
+                alert("Gagal menghapus transaksi.");
+            }
+        };
+
+        // Fungsi untuk merender daftar transaksi dan ringkasan
+        const renderTransactions = (transactions) => {
+            transactionList.innerHTML = '';
+            let totalIncome = 0;
+            let totalExpense = 0;
+            
+            if (transactions.length === 0) {
+                // Tampilkan pesan "Belum ada transaksi" di luar tabel
+                noTransactionsEl.classList.remove('hidden');
+                // Hapus placeholder dari tabel jika ada
+                transactionList.innerHTML = '';
+                return;
+            } else {
+                noTransactionsEl.classList.add('hidden');
+            }
+
+            transactions.forEach(transaction => {
+                const { id, type, amount, description, date } = transaction;
+
+                // Hitung total
+                if (type === 'income') {
+                    totalIncome += amount;
+                } else {
+                    totalExpense += amount;
+                }
+
+                // Buat baris tabel
+                const row = document.createElement('tr');
+                const amountClass = type === 'income' ? 'income' : 'expense';
+                const sign = type === 'income' ? '+' : '-';
+
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${date}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${description}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-right ${amountClass}">
+                        ${sign} ${formatRupiah(amount)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button class="text-red-600 hover:text-red-800 focus:outline-none" data-id="${id}" data-action="delete">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5 0a1 1 0 10-2 0v6a1 1 0 102 0V8z" clip-rule="evenodd" />
+                            </svg>
+                            Hapus
+                        </button>
+                    </td>
+                `;
+                transactionList.appendChild(row);
+            });
+
+            // Hitung dan perbarui ringkasan
+            const totalBalance = totalIncome - totalExpense;
+            totalBalanceEl.textContent = formatRupiah(totalBalance);
+            totalIncomeEl.textContent = formatRupiah(totalIncome);
+            totalExpenseEl.textContent = formatRupiah(totalExpense);
+        };
+
+        // Inisialisasi listener real-time Firestore
+        const startDataListener = () => {
+            // 1. Hapus orderBy dari kueri untuk menghindari error index.
+            const q = query(transactionsCollectionRef);
+            
+            // onSnapshot akan memuat data awal dan mendengarkan perubahan secara real-time
+            onSnapshot(q, (snapshot) => {
+                const transactions = [];
+                snapshot.forEach(doc => {
+                    transactions.push({ id: doc.id, ...doc.data() });
+                });
+                
+                // 2. Lakukan pengurutan di sisi klien (JavaScript)
+                transactions.sort((a, b) => {
+                    // Sortir berdasarkan tanggal (descending: terbaru di atas)
+                    if (a.date < b.date) return 1;
+                    if (a.date > b.date) return -1;
+
+                    // Jika tanggal sama, sortir berdasarkan waktu pembuatan (createdAt) (descending)
+                    const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : a.createdAt;
+                    const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : b.createdAt;
+                    
+                    if (dateA < dateB) return 1;
+                    if (dateA > dateB) return -1;
+                    
+                    return 0;
+                });
+
+                // Render ulang UI setiap kali data berubah
+                renderTransactions(transactions);
+            }, (error) => {
+                console.error("Kesalahan saat mendengarkan data Firestore:", error);
+                // Menghapus alert() karena bisa mengganggu
+            });
+        };
+
+        // Event listener untuk pengiriman formulir
+        transactionForm.addEventListener('submit', addTransaction);
+
+        // Event listener delegasi untuk tombol hapus
+        transactionList.addEventListener('click', (e) => {
+            const button = e.target.closest('[data-action="delete"]');
+            if (button) {
+                const docId = button.getAttribute('data-id');
+                deleteTransaction(docId);
+            }
+        });
+
+        // Tetapkan tanggal hari ini sebagai nilai default
+        document.getElementById('date').valueAsDate = new Date();
+        
+        // Mulai inisialisasi aplikasi saat DOM siap
+        initFirebase();
+    </script>
+
+</body>
+</html>
